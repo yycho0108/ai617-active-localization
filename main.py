@@ -22,75 +22,7 @@ from stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv
 from sb3_contrib import RecurrentPPO
 from sb3_contrib.ppo_recurrent.policies import MlpLstmPolicy
 
-
-class FlattenWrapper(gym.ObservationWrapper):
-    def __init__(self, env: gym.Env):
-        super().__init__(env)
-        self.observation_space = gym.spaces.Box(
-            low=0, high=255, shape=(7 * 7 * 3,), dtype=np.uint8)
-
-    def observation(self, observation: np.ndarray):
-        # return observation.ravel()
-        return (observation.ravel() / 255.0) - 0.5
-
-
-class CustomEnvWrapper(gym.Wrapper):
-    def __init__(self, env: gym.Env):
-        super().__init__(env)
-        self.env = env
-        self.action_space = gym.spaces.Discrete(5)
-        self.observation_space = gym.spaces.Box(
-            low=0, high=255, shape=(7, 7, 3), dtype=np.uint8)
-        # left, down, up, right
-        self._actions = [1, 3, 5, 7, -1]
-        self._markers = []
-
-    def _get_pos(self, obs: np.ndarray) -> Tuple[int, int]:
-        agent_color: Tuple[int, int, int] = (127, 255, 127)
-        return np.argwhere(np.equal(obs, agent_color).all(
-            axis=-1)).mean(axis=0).astype(np.int32)
-
-    def _add_markers(self, obs: np.ndarray) -> np.ndarray:
-        if len(self._markers) <= 0:
-            return obs
-        for m in self._markers:
-            obs[m[0], m[1]] = (255, 0, 0)
-        return obs
-
-    def _crop_obs(self, obs: np.ndarray, loc: Tuple[int, int]):
-        return obs
-        window_size: Tuple[int, int] = (7, 7)
-        radius: Tuple[int, int] = (window_size[0] // 2, window_size[1] // 2)
-        out = np.zeros(window_size + (3,), dtype=obs.dtype)
-
-        idx0 = (max(0, loc[0] - radius[0]), max(0, loc[1] - radius[1]))
-        idx1 = (min(loc[0] + radius[0] + 1, obs.shape[0]),
-                min(loc[1] + radius[1] + 1, obs.shape[1]))
-        offset = np.subtract(idx0, (loc[0] - radius[0], loc[1] - radius[1]))
-        roi = obs[idx0[0]:idx1[0], idx0[1]:idx1[1]]
-        out[offset[0]:offset[0] + roi.shape[0],
-            offset[1]:offset[1] + roi.shape[1], :] = roi
-        return out
-
-    def reset(self):
-        self._markers = []
-        obs = self.env.reset()
-        loc = self._get_pos(obs)
-        return self._crop_obs(obs, loc)
-
-    def step(self, action: int):
-        if action == 4:
-            # NOTE(ycho): 4 = null action in procgen.
-            obs, rew, done, info = self.env.step(4)
-            loc = self._get_pos(obs)
-            self._markers.append(loc)
-            obs = self._add_markers(obs)
-            # NOTE(ycho): override reward:-1
-            return self._crop_obs(obs, loc), -1, done, info
-        obs, rew, done, info = self.env.step(self._actions[action])
-        obs = self._add_markers(obs)
-        loc = self._get_pos(obs)
-        return self._crop_obs(obs, loc), rew, done, info
+from env_maze import (CustomEnvWrapper, FlattenWrapper, make_env)
 
 
 def test_env():
@@ -121,8 +53,8 @@ def test_env():
         prv_obs = obs
 
         cv2.namedWindow('obs', cv2.WINDOW_NORMAL)
-        vis = cv2.resize(obs[...,::-1], dsize=None,
-                fx=8, fy=8, interpolation=cv2.INTER_NEAREST)
+        vis = cv2.resize(obs[..., ::-1], dsize=None,
+                         fx=8, fy=8, interpolation=cv2.INTER_NEAREST)
         cv2.imwrite(F'/tmp/ai617/obs-{step:03d}.png', vis)
         # cv2.imshow('obs', obs[..., ::-1])
         # cv2.waitKey(10)
