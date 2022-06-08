@@ -11,13 +11,16 @@ from typing import Tuple, Optional, Dict, Any
 from pathlib import Path
 
 _AGENT_COLOR: Tuple[int, int, int] = (127, 255, 127)
+_WALL_COLOR: Tuple[int, int, int] = (191, 127, 63)
+_WINDOW_SIZE: Tuple[int, int] = (7, 7)
 
 
 class FlattenWrapper(gym.ObservationWrapper):
     def __init__(self, env: gym.Env):
         super().__init__(env)
         self.observation_space = gym.spaces.Box(
-            low=0, high=255, shape=(7 * 7 * 3,), dtype=np.uint8)
+            low=0, high=255, shape=(
+                np.prod(_WINDOW_SIZE) * 3,), dtype=np.uint8)
 
     def observation(self, observation: np.ndarray):
         # return observation.ravel()
@@ -30,7 +33,7 @@ class CustomEnvWrapper(gym.Wrapper):
         self.env = env
         self.action_space = gym.spaces.Discrete(5)
         self.observation_space = gym.spaces.Box(
-            low=0, high=255, shape=(7, 7, 3), dtype=np.uint8)
+            low=0, high=255, shape=(_WINDOW_SIZE + (3,)), dtype=np.uint8)
         # left, down, up, right
         self._actions = [1, 3, 5, 7, -1]
         self._markers = []
@@ -43,14 +46,19 @@ class CustomEnvWrapper(gym.Wrapper):
         if len(self._markers) <= 0:
             return obs
         for m in self._markers:
-            obs[m[0], m[1]] = (255, 0, 0)
+            obs[m[0], m[1]] = np.bitwise_or(obs[m[0], m[1]], (255, 0, 0))
         return obs
 
+    def _down_obs(self, obs: np.ndarray):
+        return cv2.resize(obs, None, fx=0.25, fy=0.25,
+                          interpolation=cv2.INTER_NEAREST_EXACT)
+
     def _crop_obs(self, obs: np.ndarray, loc: Tuple[int, int]):
+        # cv2.imshow('obs_', obs)
+        # cv2.waitKey(1)
         # return obs
-        window_size: Tuple[int, int] = (7, 7)
-        radius: Tuple[int, int] = (window_size[0] // 2, window_size[1] // 2)
-        out = np.zeros(window_size + (3,), dtype=obs.dtype)
+        radius: Tuple[int, int] = (_WINDOW_SIZE[0] // 2, _WINDOW_SIZE[1] // 2)
+        out = np.zeros(_WINDOW_SIZE + (3,), dtype=obs.dtype)
 
         idx0 = (max(0, loc[0] - radius[0]), max(0, loc[1] - radius[1]))
         idx1 = (min(loc[0] + radius[0] + 1, obs.shape[0]),
@@ -61,25 +69,33 @@ class CustomEnvWrapper(gym.Wrapper):
             offset[1]:offset[1] + roi.shape[1], :] = roi
         return out
 
+    def _recolor_obs(self, obs: np.ndarray):
+        obs[(obs == _AGENT_COLOR).all(axis=-1)] = (0, 255, 0)
+        obs[(obs == _WALL_COLOR).all(axis=-1)] = (0, 0, 255)
+        return obs
+
     def reset(self):
         self._markers = []
-        obs = self.env.reset()
+        obs = self._down_obs(self.env.reset())
         loc = self._get_pos(obs)
-        return self._crop_obs(obs, loc)
+        return self._recolor_obs(self._crop_obs(obs, loc))
 
     def step(self, action: int):
         if action == 4:
             # NOTE(ycho): 4 = null action in procgen.
             obs, rew, done, info = self.env.step(4)
+            obs = self._down_obs(obs)
             loc = self._get_pos(obs)
             self._markers.append(loc)
             obs = self._add_markers(obs)
             # NOTE(ycho): override reward:-1
-            return self._crop_obs(obs, loc), -1, done, info
+            return self._recolor_obs(self._crop_obs(obs, loc)), -1, done, info
         obs, rew, done, info = self.env.step(self._actions[action])
-        obs = self._add_markers(obs)
+        obs = self._down_obs(obs)
         loc = self._get_pos(obs)
-        return self._crop_obs(obs, loc), rew - 0.1, done, info
+        obs = self._add_markers(obs)
+        return self._recolor_obs(self._crop_obs(
+            obs, loc)), rew - 0.1, done, info
 
 
 class MazeEnv(gym.Env):

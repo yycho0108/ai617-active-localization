@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import gym
+import cv2
 from pathlib import Path
 from ray.rllib.agents.ppo import PPOTrainer
 from ray.rllib.agents.sac import SACTrainer
@@ -15,7 +16,11 @@ def get_config(**kwds):
         'env': MazeEnv,
         'num_workers': 8,
         'model': {
-            'use_lstm': False
+            'use_lstm': True
+        },
+        'explore': True,
+        'exploration_config': {
+            'type': 'StochasticSampling'
         },
         'gamma': 0.99,
         'train_batch_size': 256,
@@ -50,12 +55,13 @@ def test():
     #ckpt_path = (
     #    '/home/jamiecho/ray_results/PPOTrainer_MazeEnv_2022-06-07_20-03-21uf2qyiot/checkpoint_000769/checkpoint-769')
     # ckpt_path = '/home/jamiecho/ray_results/PPOTrainer_MazeEnv_2022-06-07_20-43-58p2b_uojo/checkpoint_004096/checkpoint-4096'
-    ckpt_path = '/home/jamiecho/ray_results/PPOTrainer_MazeEnv_2022-06-07_21-24-362rc0x9tk/checkpoint_004096/checkpoint-4096'
+    # ckpt_path = '/home/jamiecho/ray_results/PPOTrainer_MazeEnv_2022-06-07_21-24-362rc0x9tk/checkpoint_004096/checkpoint-4096'
+    ckpt_path = '/home/jamiecho/ray_results/PPOTrainer_MazeEnv_2022-06-08_09-43-24mwhurdfh/checkpoint_004096/checkpoint-4096'
     config = get_config(num_workers=0)
     agent = PPOTrainer(config=config,
                        env=MazeEnv)
     use_lstm: bool = config.get('model', {}).get('use_lstm', False)
-    env = MazeEnv(dict(render_mode='human'))
+    env = MazeEnv(dict(render_mode=None))
     agent.restore(ckpt_path)
 
     done: bool = True
@@ -72,11 +78,20 @@ def test():
             prev_reward = None
 
         if use_lstm:
-            action, state, _ = agent.compute_single_action(
-                obs, state, explore=None)  # obs, state_in=state))
+            action, state, logits = agent.compute_single_action(
+                obs, state, explore=False)  # obs, state_in=state))
+            print(logits)
         else:
             action = agent.compute_single_action(obs, explore=False)
         obs, reward, done, info = env.step(action)
+        print('obs', obs.shape)
+
+        cv2.namedWindow('obs', cv2.WINDOW_NORMAL)
+        vis = cv2.resize((obs + 0.5).reshape(7, 7, 3)[..., ::-1], dsize=None,
+                         fx=8, fy=8, interpolation=cv2.INTER_NEAREST)
+        cv2.imshow('obs', vis)
+        cv2.waitKey(1)
+
         print('reward', reward)
 
         prev_action = action
