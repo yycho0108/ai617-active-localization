@@ -34,7 +34,7 @@ class CustomEnvWrapper(gym.Wrapper):
         self.action_space = gym.spaces.Discrete(5)
         self.observation_space = gym.spaces.Box(
             low=0, high=255, shape=(_WINDOW_SIZE + (3,)), dtype=np.uint8)
-        # left, down, up, right
+        # left, down, up, right, place-marker
         self._actions = [1, 3, 5, 7, -1]
         self._markers = []
 
@@ -50,7 +50,8 @@ class CustomEnvWrapper(gym.Wrapper):
         return obs
 
     def _down_obs(self, obs: np.ndarray):
-        return cv2.resize(obs, None, fx=0.25, fy=0.25,
+        # NOTE(ycho): [15/64] only works for `easy`
+        return cv2.resize(obs, None, fx=(15 / 64), fy=(15 / 64),
                           interpolation=cv2.INTER_NEAREST_EXACT)
 
     def _crop_obs(self, obs: np.ndarray, loc: Tuple[int, int]):
@@ -58,7 +59,9 @@ class CustomEnvWrapper(gym.Wrapper):
         # cv2.waitKey(1)
         # return obs
         radius: Tuple[int, int] = (_WINDOW_SIZE[0] // 2, _WINDOW_SIZE[1] // 2)
-        out = np.zeros(_WINDOW_SIZE + (3,), dtype=obs.dtype)
+        out = np.full(_WINDOW_SIZE + (3,),
+                      255,
+                      dtype=obs.dtype)
 
         idx0 = (max(0, loc[0] - radius[0]), max(0, loc[1] - radius[1]))
         idx1 = (min(loc[0] + radius[0] + 1, obs.shape[0]),
