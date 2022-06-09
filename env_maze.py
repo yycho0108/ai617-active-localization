@@ -87,6 +87,7 @@ class CustomEnvWrapper(gym.Wrapper):
         if action == 4:
             # NOTE(ycho): 4 = null action in procgen.
             obs, rew, done, info = self.env.step(4)
+            info['obs0'] = obs
             obs = self._down_obs(obs)
             loc = self._get_pos(obs)
             self._markers.append(loc)
@@ -94,6 +95,7 @@ class CustomEnvWrapper(gym.Wrapper):
             # NOTE(ycho): override reward:-1
             return self._recolor_obs(self._crop_obs(obs, loc)), -1, done, info
         obs, rew, done, info = self.env.step(self._actions[action])
+        info['obs0'] = obs
         obs = self._down_obs(obs)
         loc = self._get_pos(obs)
         obs = self._add_markers(obs)
