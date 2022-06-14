@@ -68,8 +68,8 @@ def train():
         config=get_config()
     )
 
-    ckpt_path = '/home/jamiecho/ray_results/PPOTrainer_MazeEnv_2022-06-08_23-07-07h_zgmyyd/checkpoint_008192/checkpoint-8192'
-    trainer.restore(ckpt_path)
+    # ckpt_path = '/home/jamiecho/ray_results/PPOTrainer_MazeEnv_2022-06-08_23-07-07h_zgmyyd/checkpoint_008192/checkpoint-8192'
+    # trainer.restore(ckpt_path)
 
     try:
         with tqdm(range(16384)) as pbar:
@@ -167,8 +167,8 @@ def test():
 
 
 def main():
-    # train()
-    test()
+    train()
+    # test()
 
 
 if __name__ == '__main__':

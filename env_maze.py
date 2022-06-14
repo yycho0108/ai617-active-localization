@@ -37,10 +37,11 @@ class CustomEnvWrapper(gym.Wrapper):
         # left, down, up, right, place-marker
         self._actions = [1, 3, 5, 7, -1]
         self._markers = []
+        self._history = set()
 
     def _get_pos(self, obs: np.ndarray) -> Tuple[int, int]:
-        return np.argwhere(np.equal(obs, _AGENT_COLOR).all(
-            axis=-1)).mean(axis=0).astype(np.int32)
+        return tuple(np.argwhere(np.equal(obs, _AGENT_COLOR).all(
+            axis=-1)).mean(axis=0).astype(np.int32))
 
     def _add_markers(self, obs: np.ndarray) -> np.ndarray:
         if len(self._markers) <= 0:
@@ -79,28 +80,45 @@ class CustomEnvWrapper(gym.Wrapper):
 
     def reset(self):
         self._markers = []
+        self._history = set()
         obs = self._down_obs(self.env.reset())
         loc = self._get_pos(obs)
+        self._history.add(loc)
         return self._recolor_obs(self._crop_obs(obs, loc))
 
     def step(self, action: int):
+        # Take action.
         if action == 4:
-            # NOTE(ycho): 4 = null action in procgen.
+            # NOTE(ycho): 4 = "null action" in procgen.
             obs, rew, done, info = self.env.step(4)
-            info['obs0'] = obs
-            obs = self._down_obs(obs)
-            loc = self._get_pos(obs)
-            self._markers.append(loc)
-            obs = self._add_markers(obs)
-            # NOTE(ycho): override reward:-1
-            return self._recolor_obs(self._crop_obs(obs, loc)), -1, done, info
-        obs, rew, done, info = self.env.step(self._actions[action])
+        else:
+            obs, rew, done, info = self.env.step(self._actions[action])
+
+        # Process observations.
         info['obs0'] = obs
         obs = self._down_obs(obs)
         loc = self._get_pos(obs)
+
+        # For marker-placement actions,
+        # track marker placements and add
+        # extra penalty for rewards.
+        if action == 4:
+            rew -= 0.3
+            self._markers.append(loc)
         obs = self._add_markers(obs)
+
+        # Penalize each timesteps.
+        rew -= 0.1
+
+        # Especially penalize revisits.
+        if loc in self._history:
+            rew -= 0.5
+
+        # Track history, format observation and
+        # and return results.
+        self._history.add(loc)
         return self._recolor_obs(self._crop_obs(
-            obs, loc)), rew - 0.1, done, info
+            obs, loc)), rew, done, info
 
 
 class MazeEnv(gym.Env):
