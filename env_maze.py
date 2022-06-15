@@ -103,16 +103,16 @@ class CustomEnvWrapper(gym.Wrapper):
         # track marker placements and add
         # extra penalty for rewards.
         if action == 4:
-            rew -= 0.3
+            rew -= 0.01
             self._markers.append(loc)
         obs = self._add_markers(obs)
 
-        # Penalize each timesteps.
-        rew -= 0.1
+        # Penalize each timestep.
+        rew -= 0.01
 
         # Especially penalize revisits.
         if loc in self._history:
-            rew -= 0.5
+            rew -= 0.05
 
         # Track history, format observation and
         # and return results.

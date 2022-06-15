@@ -15,7 +15,8 @@ def get_config(**kwds):
     out = {
         'framework': 'torch',
         'env': MazeEnv,
-        'num_workers': 8,  # required due to ICM
+        # set `num_workers=0` when using ICM
+        'num_workers': 8,
         'model': {
             'use_lstm': True
         },
@@ -44,6 +45,7 @@ def get_config(**kwds):
 
         'train_batch_size': 2048,
         'sgd_minibatch_size': 2048,
+        'rollout_fragment_length': 64,
         'num_sgd_iter': 3,
         'lr': 5e-5,
 
@@ -69,10 +71,12 @@ def train():
     )
 
     # ckpt_path = '/home/jamiecho/ray_results/PPOTrainer_MazeEnv_2022-06-08_23-07-07h_zgmyyd/checkpoint_008192/checkpoint-8192'
-    # trainer.restore(ckpt_path)
+    # ckpt_path = '/home/jamiecho/ray_results/PPOTrainer_MazeEnv_2022-06-08_23-07-07h_zgmyyd/checkpoint_008192/checkpoint-8192'
+    ckpt_path = '/home/jamiecho/ray_results/PPOTrainer_MazeEnv_2022-06-15_00-08-22oalwl0qd/checkpoint_016384/checkpoint-16384'
+    trainer.restore(ckpt_path)
 
     try:
-        with tqdm(range(16384)) as pbar:
+        with tqdm(range(32768)) as pbar:
             for i in pbar:
                 results = trainer.train()
                 if i % 64 == 0:
@@ -94,12 +98,13 @@ def test():
     # ckpt_path = '/home/jamiecho/ray_results/PPOTrainer_MazeEnv_2022-06-07_21-24-362rc0x9tk/checkpoint_004096/checkpoint-4096'
     # ckpt_path = '/home/jamiecho/ray_results/PPOTrainer_MazeEnv_2022-06-08_09-43-24mwhurdfh/checkpoint_004096/checkpoint-4096'
     # ckpt_path = '/home/jamiecho/ray_results/PPOTrainer_MazeEnv_2022-06-08_17-22-466t71fx75/checkpoint_008192/checkpoint-8192'
-    ckpt_path = '/home/jamiecho/ray_results/PPOTrainer_MazeEnv_2022-06-09_01-07-334l0_nzrp/checkpoint_024576/checkpoint-24576'
+    # ckpt_path = '/home/jamiecho/ray_results/PPOTrainer_MazeEnv_2022-06-09_01-07-334l0_nzrp/checkpoint_024576/checkpoint-24576'
+    ckpt_path = '/home/jamiecho/ray_results/PPOTrainer_MazeEnv_2022-06-15_04-27-14f_nxdd7a/checkpoint_049152/checkpoint-49152'
     config = get_config(num_workers=0)
     agent = PPOTrainer(config=config,
                        env=MazeEnv)
     use_lstm: bool = config.get('model', {}).get('use_lstm', False)
-    env = MazeEnv(dict(render_mode=None))
+    env = MazeEnv(dict(render_mode='human'))
     agent.restore(ckpt_path)
 
     done: bool = True
@@ -167,8 +172,8 @@ def test():
 
 
 def main():
-    train()
-    # test()
+    # train()
+    test()
 
 
 if __name__ == '__main__':
