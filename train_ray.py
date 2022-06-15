@@ -9,6 +9,8 @@ from ray.rllib.agents.sac import SACTrainer
 from typing import Dict
 from env_maze import MazeEnv
 from tqdm.auto import tqdm
+from matplotlib import pyplot as plt
+import torch as th
 
 
 def get_config(**kwds):
@@ -115,6 +117,7 @@ def test():
     obss = []
     steps = 0
     sav = True
+    probs = []
     while True:
         if done:
             obs = env.reset()
@@ -125,9 +128,26 @@ def test():
             obss = []
             sav = True
 
+            plt.clf()
+            plt.bar(
+                np.arange(env.action_space.n),
+                np.mean(probs, axis=0),
+                yerr=np.std(probs, axis=0),
+                alpha=0.8)
+            plt.title(F'Action probability distribution | {steps} steps')
+            plt.xlabel('action')
+            plt.ylabel('probability')
+            plt.grid()
+            plt.savefig('/tmp/actions.png')
+            probs = []
+
         if use_lstm:
-            action, state, logits = agent.compute_single_action(
+            action, state, extra = agent.compute_single_action(
                 obs, state, explore=False)  # obs, state_in=state))
+            probs.append(
+                th.softmax(
+                    th.as_tensor(extra['action_dist_inputs']),
+                    dim=- 1).ravel().detach().cpu().numpy())
         else:
             action = agent.compute_single_action(obs, explore=False)
         if action == 4:
