@@ -11,6 +11,7 @@ from env_maze import MazeEnv
 from tqdm.auto import tqdm
 from matplotlib import pyplot as plt
 import torch as th
+from vis import plot_categorical_distribution, obs2vis
 
 
 def get_config(**kwds):
@@ -127,18 +128,7 @@ def test():
             prev_reward = None
             obss = []
             sav = True
-
-            plt.clf()
-            plt.bar(
-                np.arange(env.action_space.n),
-                np.mean(probs, axis=0),
-                yerr=np.std(probs, axis=0),
-                alpha=0.8)
-            plt.title(F'Action probability distribution | {steps} steps')
-            plt.xlabel('action')
-            plt.ylabel('probability')
-            plt.grid()
-            plt.savefig('/tmp/actions.png')
+            plot_categorical_distribution(probs, steps=steps)
             probs = []
 
         if use_lstm:
@@ -154,10 +144,16 @@ def test():
             print(F'Took {steps} steps')
             break
         obs, reward, done, info = env.step(action)
+
         obss.append(info['obs0'])
         steps += 1
         if steps % 1000 == 0:
             print(steps)
+
+        # Show `obs`.
+        cv2.namedWindow('obs', cv2.WINDOW_NORMAL)
+        cv2.imshow('obs', (obs + 0.5).reshape((7, 7, 3))[..., ::-1])
+        cv2.waitKey(1)
 
         if True:
             vis = cv2.resize(
