@@ -7,7 +7,10 @@ from pathlib import Path
 from ray.rllib.agents.ppo import PPOTrainer
 from ray.rllib.agents.sac import SACTrainer
 from typing import Dict
+
 from env_maze import MazeEnv
+from ray_vec_env_maze import RayMazeEnv
+
 from tqdm.auto import tqdm
 from matplotlib import pyplot as plt
 import torch as th
@@ -17,11 +20,17 @@ from vis import plot_categorical_distribution, obs2vis
 def get_config(**kwds):
     out = {
         'framework': 'torch',
-        'env': MazeEnv,
+
+        'env': RayMazeEnv,
+        'env_config': {
+           'num_envs': 16
+        },
+        # 'env': MazeEnv,
+
         # set `num_workers=0` when using ICM
         'num_workers': 8,
         'model': {
-            'use_lstm': True
+            'use_lstm': False
         },
         'explore': True,
         'exploration_config': {
@@ -75,8 +84,8 @@ def train():
 
     # ckpt_path = '/home/jamiecho/ray_results/PPOTrainer_MazeEnv_2022-06-08_23-07-07h_zgmyyd/checkpoint_008192/checkpoint-8192'
     # ckpt_path = '/home/jamiecho/ray_results/PPOTrainer_MazeEnv_2022-06-08_23-07-07h_zgmyyd/checkpoint_008192/checkpoint-8192'
-    ckpt_path = '/home/jamiecho/ray_results/PPOTrainer_MazeEnv_2022-06-15_00-08-22oalwl0qd/checkpoint_016384/checkpoint-16384'
-    trainer.restore(ckpt_path)
+    # ckpt_path = '/home/jamiecho/ray_results/PPOTrainer_MazeEnv_2022-06-15_00-08-22oalwl0qd/checkpoint_016384/checkpoint-16384'
+    # trainer.restore(ckpt_path)
 
     try:
         with tqdm(range(32768)) as pbar:
@@ -188,8 +197,8 @@ def test():
 
 
 def main():
-    # train()
-    test()
+    train()
+    # test()
 
 
 if __name__ == '__main__':
